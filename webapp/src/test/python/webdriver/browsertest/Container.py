@@ -40,7 +40,6 @@ class Container:
         try:
             self.driver.quit()
         except Exception:
-            pass
             self.log("Safely ignoring driver error (usually related to the PhantomJS webdriver)")
         if self.localLocation():
             self.localTeardown()
@@ -55,7 +54,7 @@ class Container:
 
     def _logEnabled(self):
         verbose = os.getenv('VERBOSE')
-        return bool(not verbose is None and verbose != "")
+        return verbose is not None and verbose != ""
 
     def log(self, message):
         if self._log_enabled:
@@ -83,21 +82,17 @@ class Container:
             # Remote driver requires a executor (typically a Remote URL)
             browserProfile = FirefoxProfile()
             return webdriver.Remote(command_executor = remoteURL, keep_alive = True, \
-                browser_profile = browserProfile, desired_capabilities = capabilities)
+                    browser_profile = browserProfile, desired_capabilities = capabilities)
         clazz = self._driverClass(className)
         try:
-            self.log("" + className + "(capabilities)")
+            self.log(f"{className}(capabilities)")
             return clazz(desired_capabilities = capabilities)
         except Exception:
-            self.log("Setting up " + className)
+            self.log(f"Setting up {className}")
             if className == 'PhantomJS':
                 # PhantomJS cannot handle capabilities
-                self.log("Creating " + className)
-                return clazz()
-            else:
-                # Firefox and Ie drivers have different name for desired capabilities parameter
-                #return clazz(capabilities = capabilities)
-                return clazz()
+                self.log(f"Creating {className}")
+            return clazz()
 
     def _remoteUsername(self):
         if self.localLocation():
@@ -179,7 +174,7 @@ class Container:
         self._virtualDisplay = None
         try:
             virtualdisplay = __import__("pyvirtualdisplay", globals(), locals(), ['Display'])
-            self.log("Imported [" + str(virtualdisplay) + "]")
+            self.log(f"Imported [{str(virtualdisplay)}]")
             if virtualdisplay:
                 self._virtualDisplay = virtualdisplay.Display(visible=0, size=(1024, 768))
                 self._virtualDisplay.start()
@@ -244,18 +239,17 @@ class Container:
 
     def browserstackSetup(self):
         self.log("Setup for browserstack")
-        if not 'webdriver.remote.sessionid' in self.driver.desired_capabilities:
+        if 'webdriver.remote.sessionid' not in self.driver.desired_capabilities:
             self.log("Unable to reference browserstack test, because property " + 
                 "'{0}' is missing in [{1}]".format('webdriver.remote.sessionid', \
-                json.dumps(self.driver.desired_capabilities)))
+                    json.dumps(self.driver.desired_capabilities)))
             return
         sessionID = self.driver.desired_capabilities['webdriver.remote.sessionid']
         capabilities = self._capabilities();
         auth = (self._remoteUsername, os.getenv("REMOTE_ACCESSKEY"))
-        buildID = self.browserstackFindBuildId(auth, capabilities['build'])
-        if buildID:
+        if buildID := self.browserstackFindBuildId(auth, capabilities['build']):
             self._resultReference = "{0}/builds/{1}/sessions/{2}".format(\
-                self.BROWSERSTACK_API_BASE, buildID, sessionID)
+                    self.BROWSERSTACK_API_BASE, buildID, sessionID)
             self.log("reference URL={0}".format(self._resultReference))
         else:
             self.log("Unable to find Browserstack session")
@@ -307,19 +301,17 @@ class Container:
     def logBrowserConsole(self):
         if not self.supportsBrowserLog():
             self.log("Current driver does not support browser log")
+        elif entries := self.getConsole('browser', self.browserLogIndex):
+            self.log("\n------ BROWSER-LOG ------\n")
+            for entry in entries:
+                self.log("{0}".format(entry))
+            self.log("\n------------------------=\n")
+            self.browserLogIndex = self.browserLogIndex + len(entries)
         else:
-            entries = self.getConsole('browser', self.browserLogIndex)
-            if entries:
-                self.log("\n------ BROWSER-LOG ------\n")
-                for entry in entries:
-                    self.log("{0}".format(entry))
-                self.log("\n------------------------=\n")
-                self.browserLogIndex = self.browserLogIndex + len(entries)
-            else:
-                self.log("Browser log is empty")
+            self.log("Browser log is empty")
 
     def getConsole(self, logType = None, startingIndex = 0):
-        logType = logType if logType else 'browser'
+        logType = logType or 'browser'
         entries = None
         try:
             i = startingIndex

@@ -19,7 +19,7 @@ class ElementHasText(object):
     def __call__(self, driver):
         try:
             actual = _find_element(driver, self.locator).text
-            if not type(actual) is str:
+            if type(actual) is not str:
                 actual = actual.encode('unicode-escape')
             actual = self.setCase(actual)
             #print "Comparing '{0}' and '{1}'".format(actual, self.expected)
@@ -37,11 +37,9 @@ class HasLocation(object):
     url is the expected location. Must be a string or a regular expression
     returns True if the current URL matches 'rul', false otherwise."""
     def __init__(self, url):
-        if not type(url) is list:
+        if type(url) is not list:
             url = [ url ]
-        self.expected = []
-        for u in url:
-            self.expected.append(re.compile(u) if type(u) is str else u)
+        self.expected = [re.compile(u) if type(u) is str else u for u in url]
 
     def __call__(self, driver):
         return (self.matches(driver.current_url))
@@ -52,11 +50,7 @@ class HasLocation(object):
             actual = ""
         elif not type(actual):
             actual = str(actual)
-        for e in self.expected:
-            if e.match(actual):
-                return True
-        else:
-            return False
+        return any(e.match(actual) for e in self.expected)
 
 
 

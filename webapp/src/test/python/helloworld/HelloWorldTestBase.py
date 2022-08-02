@@ -53,40 +53,49 @@ class HelloWorldTestBase(BrowserTest):
         self.openBaseUrl()
           
     def isExtrasmallViewport(self):
-        return bool(self.windowWidth() < self.VIEWPORT_EXTRASMALL_BREAKPOINT)
+        return self.windowWidth() < self.VIEWPORT_EXTRASMALL_BREAKPOINT
 
     def isSmallViewport(self):
         width = self.windowWidth()
-        return bool((self.VIEWPORT_EXTRASMALL_BREAKPOINT <= width) and \
-            (width < self.VIEWPORT_SMALL_BREAKPOINT))
+        return (
+            self.VIEWPORT_EXTRASMALL_BREAKPOINT
+            <= width
+            < self.VIEWPORT_SMALL_BREAKPOINT
+        )
 
     def isMediumViewport(self):
         width = self.windowWidth()
-        return bool((self.VIEWPORT_SMALL_BREAKPOINT <= width) and \
-            (width < self.VIEWPORT_MEDIUM_BREAKPOINT))
+        return (
+            self.VIEWPORT_SMALL_BREAKPOINT
+            <= width
+            < self.VIEWPORT_MEDIUM_BREAKPOINT
+        )
 
     def isLargeViewport(self):
         width = self.windowWidth()
-        return bool(self.VIEWPORT_MEDIUM_BREAKPOINT <= width)
+        return self.VIEWPORT_MEDIUM_BREAKPOINT <= width
 
 
     def validateLink(self, url, expectedText = None, expectedTitle = None, expectedUrl = None, \
-        xpathContext = None):
-        xpathContext = xpathContext if xpathContext else ""
+            xpathContext = None):
+        xpathContext = xpathContext or ""
         selector = ".//{1}a[@href='{0}']".format(url, xpathContext)
         if expectedText:
             self.assertTextPresent(By.XPATH, selector, expectedText)
 
         totalTries = self._followLinkMaxRetries + 1
-        for i in range(0, totalTries):
+        for i in range(totalTries):
             try:
-                self.click(By.XPATH, selector, "Click {0}".format(expectedText), \
-                    expectedURL = expectedUrl if expectedUrl else url)
+                self.click(
+                    By.XPATH,
+                    selector,
+                    "Click {0}".format(expectedText),
+                    expectedURL=expectedUrl or url,
+                )
+
                 break
             except TimeoutException:
                 retry = i + 1 # First 'try' is not a retry
-                if retry < totalTries:
-                    pass
         if expectedTitle:
             self.assertTitle(expectedTitle);
 

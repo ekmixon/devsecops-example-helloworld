@@ -11,6 +11,7 @@ It defines classes_and_methods
 '''
 
 
+
 import sys
 import os
 import re
@@ -104,7 +105,7 @@ KEY_MAP = {
     "UP": u'\ue013',
 }
 
-INVERSE_KEY_MAP = dict((v, k) for k, v in KEY_MAP.items())
+INVERSE_KEY_MAP = {v: k for k, v in KEY_MAP.items()}
 
 class BrowserTest(unittest.TestCase):
 
@@ -161,8 +162,11 @@ class BrowserTest(unittest.TestCase):
             self.open("/", handleAlert = True)
         else:
             #self.driver.delete_all_cookies()
-            self.open("/?"  + self._cookie(), message = " using specified cookie", \
-                handleAlert = True)
+            self.open(
+                f"/?{self._cookie()}",
+                message=" using specified cookie",
+                handleAlert=True,
+            )
 
     def teardownDriver(self):
         self._driverContainer.logBrowserConsole()
@@ -190,21 +194,21 @@ class BrowserTest(unittest.TestCase):
     def recordResult(self):
         if self._resultStatus is None:
             self.log("WARNING: No result found. This can happen when you override 'self.run()'" +\
-                " or programmatically change 'self._result'")
-        elif not TestSuite.reporter is None:
-            reporter = TestSuite.reporter 
+                    " or programmatically change 'self._result'")
+        elif TestSuite.reporter is not None:
+            reporter = TestSuite.reporter
             self.log("Logging results to {0}".format(reporter.getResultsFile()))
-            reporter.recordResult(self._resultStatus, self._test_name, \
-                self._resultReference if self._resultReference else "")
+            reporter.recordResult(
+                self._resultStatus, self._test_name, self._resultReference or ""
+            )
+
         else:
             self.log("No results file given")
 
     def _testName(self):
         name = self.id()
         prefix = "__main__."
-        if name.startswith(prefix):
-            return name[len(prefix):]
-        return name
+        return name[len(prefix):] if name.startswith(prefix) else name
 
     def _environment(self):
         environment = os.getenv("ENVIRONMENT")
@@ -236,7 +240,7 @@ class BrowserTest(unittest.TestCase):
 
     def _logEnabled(self):
         verbose = os.getenv('VERBOSE')
-        return bool(not verbose is None and verbose != "")
+        return verbose is not None and verbose != ""
 
     def _stepDelay(self): 
         delay = float(os.getenv('STEP_DELAY', 0))
@@ -257,10 +261,7 @@ class BrowserTest(unittest.TestCase):
 
     def getBrowser(self):
         capabilities = self._capabilities()
-        browser = capabilities['browser']
-        if not browser:
-            browser = self._driverClassName()
-        return browser
+        return capabilities['browser'] or self._driverClassName()
 
     def run(self, result = None):
         self._result = result
@@ -273,7 +274,7 @@ class BrowserTest(unittest.TestCase):
             sys.stdout.flush()
 
     def matches(self, actual, expected):
-        if not type(expected) is list:
+        if type(expected) is not list:
             expected = [ expected ]
         for e in expected:
             if type(e) is str:
@@ -281,40 +282,34 @@ class BrowserTest(unittest.TestCase):
             message = "Comparing {0} to {1}".format(actual, e.pattern)
             self.log(message)
             if e.match(actual):
-                self.log(message + ": Match")
+                self.log(f"{message}: Match")
                 return True
-            self.log(message + ": No match")
-        else:
-            return False
+            self.log(f"{message}: No match")
+        return False
 
     def describeValues(self, values):
-        if not type(values) is list:
+        if type(values) is not list:
             return self.describeValue(values)
         return "[" + map(self.describeValue, values).join(",") + "]"
 
     def describeValue(self, value):
         if not value:
             return "-"
-        if type(value) is str: 
-            return value
-        return value.pattern
+        return value if type(value) is str else value.pattern
 
     def describeElement(self, by, value):
         return "element[{0}={1}]".format(by, value)
 
     def describeKey(self, key):
-        return "Keys." + INVERSE_KEY_MAP[key] if key in INVERSE_KEY_MAP \
+        return (
+            f"Keys.{INVERSE_KEY_MAP[key]}"
+            if key in INVERSE_KEY_MAP
             else key.encode('unicode-escape')
+        )
 
     def onFail(self, by, value, message, text):
-        if message: 
-            message = message + ". "
-        else:
-            message = ""
-        if text:
-            text = ":" + text
-        else:
-            text = ""
+        message = f"{message}. " if message else ""
+        text = f":{text}" if text else ""
         self.fail("Failed: {0}{1} {2}".format(message, self.describeElement(by, value), text))
 
 
@@ -332,8 +327,12 @@ class BrowserTest(unittest.TestCase):
         wait_for = self.getDefaultWaitFor()
         change = 'focus' if focus else 'blur'
         element = self.assertElementPresent(by, selector, message, wait_for = wait_for)
-        self.log("{0} on {1}{2}".format(change, description, \
-            ", because " + message if message else ""))
+        self.log(
+            "{0} on {1}{2}".format(
+                change, description, f", because {message}" if message else ""
+            )
+        )
+
         script = ""
         if by == By.ID:
             script = "jQuery(\"#{0}\")".format(selector)
@@ -341,7 +340,7 @@ class BrowserTest(unittest.TestCase):
             script = "jQuery(\"{0}\")".format(selector)
         else:
             self.onFail(by, selector, message, "Cannot {0} for this selector type (yet).".\
-                format(change))
+                    format(change))
         script = "{0}.{1}();".format(script, change)
         self.log("{0} on {1} using {2}".format(change, description, script))
         self.driver.execute_script(script)
@@ -386,10 +385,7 @@ class BrowserTest(unittest.TestCase):
         if not element: self.onFail(by, value, message, "Not found")
         if not element.is_displayed(): self.onFail(by, value, message, "Not visible")
         if not key: self.onFail(by, value, message, "Not key (or keys) given")
-        if type(key) is list:
-            keys = key
-        else:
-            keys = [ key ]
+        keys = key if type(key) is list else [ key ]
         if message:
             self.log(message)
         for k in keys:
@@ -398,7 +394,7 @@ class BrowserTest(unittest.TestCase):
                 self.clearElement(by, value)
             else:
                 self.log("Send '{0}' to {1}".format(self.describeKey(k), \
-                    self.describeElement(by, value)))
+                        self.describeElement(by, value)))
                 element.send_keys(k)
             self.throttle()
         return element
@@ -443,22 +439,19 @@ class BrowserTest(unittest.TestCase):
         else: 
             prefix = "relative"
             if not url.startswith("/"):
-                url = "/" + url
+                url = f"/{url}"
             if makeAbsolute:
                 url = self.base_url + url
-        if  message: 
-            message = " " + message
-        else:
-            message = ""
+        message = f" {message}" if message else ""
         self.log("Opening {0} URL '{1}'{2}{3}".format(prefix, url, message, \
-            " (Automatically handle unexpected alerts)" if handleAlert else ""))
+                " (Automatically handle unexpected alerts)" if handleAlert else ""))
         try:
             self.driver.get(url)
         except UnexpectedAlertPresentException:
             if handleAlert:
                 alert = Alert(self.driver)
                 text = alert.text
-                if not type(text) is str:
+                if type(text) is not str:
                     # Likely unicode
                     text = text.encode('ascii', 'ignore')
                 self.log("Accepting unexpected alert ({0})".format(text))
@@ -473,22 +466,28 @@ class BrowserTest(unittest.TestCase):
         return self.assertTextPresent(by, value, expectedText, message, 0)
 
     def assertTextPresent(self, by, value, expectedText, message = None, wait_for = None, \
-        ignoreCase = True):
+            ignoreCase = True):
         if not wait_for: wait_for = self.getDefaultWaitFor()
         self.assertElementPresent(by, value, message, wait_for)
         # lookup again to avoid stale element exception
         #self.assertElementPresent(by, value, message, wait_for)
-        if not type(expectedText) is str:
+        if type(expectedText) is not str:
             expectedText = expectedText.encode('unicode-escape')
         try:
-            self.log("{3}Waiting a maximum of {0}s for text {1} in {2}{3}".format(\
-                wait_for, expectedText, self.describeElement(by, value),\
-                ". " + message if message else ""))
+            self.log(
+                "{3}Waiting a maximum of {0}s for text {1} in {2}{3}".format(
+                    wait_for,
+                    expectedText,
+                    self.describeElement(by, value),
+                    f". {message}" if message else "",
+                )
+            )
+
             return WebDriverWait(self.driver, wait_for).until(ElementHasText(\
-                (by, value), expectedText, ignoreCase))
+                    (by, value), expectedText, ignoreCase))
         except Exception:
             self.onFail(by, value, message, "Expected text {0}, but timed-out after {1} seconds.".\
-                format(expectedText, wait_for, traceback.format_exc()))
+                    format(expectedText, wait_for, traceback.format_exc()))
 
     def assertElementPresentNow(self, by, value, message=None):
         return self.assertElementPresent(by, value, message, 0)
@@ -496,16 +495,22 @@ class BrowserTest(unittest.TestCase):
     def assertElementPresent(self, by, value, message = None, wait_for = None):
         if not wait_for: wait_for = self.getDefaultWaitFor()
         try:
-            self.log("Waiting a maximum of {1}s for {0}{2}".format(self.describeElement(by, value), \
-                wait_for, ". " + message if message else ""))
+            self.log(
+                "Waiting a maximum of {1}s for {0}{2}".format(
+                    self.describeElement(by, value),
+                    wait_for,
+                    f". {message}" if message else "",
+                )
+            )
+
             element = WebDriverWait(self.driver, wait_for).until(EC.visibility_of_element_located(\
-                (by, value)))
+                    (by, value)))
             self.throttle()
             return element
         except Exception as e:
             self.onFail(by, value, message, \
-                "Expected to be present, but timed-out after {0} seconds.".format(wait_for, \
-                    traceback.format_exc(e)))
+                    "Expected to be present, but timed-out after {0} seconds.".format(wait_for, \
+                        traceback.format_exc(e)))
 
     def clearElement(self, by, value, message = None):
         element = self.assertElementPresent(by, value, message = message)
@@ -525,7 +530,7 @@ class BrowserTest(unittest.TestCase):
         return element
 
     def enterAndSelectFromDropdown(self, by, value, text, message = None, nth = 1, \
-        dropdownBy = None, dropdownValue = None):
+            dropdownBy = None, dropdownValue = None):
         element = self.assertElementPresent(by, value, message = message)
         if not element: self.onFail(by, value, message, "Not found")
         element = self.sendKeys(by, value, text)
@@ -533,11 +538,11 @@ class BrowserTest(unittest.TestCase):
         if dropdownBy:
             self.assertElementPresent(dropdownBy, dropdownValue, message)
         description = "{0}-th from {1} dropdown".format(nth, self.describeElement(by, value))
-        self.log("Find " + description)
-        for i in range(1, nth+1):
+        self.log(f"Find {description}")
+        for _ in range(1, nth+1):
             element = self.sendKeys(by, value, Keys.ARROW_DOWN)
 
-        element = self.sendKeys(by, value, Keys.ENTER, message = "Select " + description)
+        element = self.sendKeys(by, value, Keys.ENTER, message=f"Select {description}")
         return element
 
     def hover(self, by, value, message = None):
@@ -557,7 +562,7 @@ class BrowserTest(unittest.TestCase):
         if key:
             element = self.sendKeys(by, value, key)
         else:
-            self.log("Click {0}{1}".format(description, ". "+ message if message else ""))
+            self.log("Click {0}{1}".format(description, f". {message}" if message else ""))
             element.click()
             self.throttle()
         if expectedURL:
@@ -587,8 +592,11 @@ class BrowserTest(unittest.TestCase):
             self.sendKeys(By.ID, form_id, value, message = "Setting form field")
 
     def submitForm(self, buttonBy = None, buttonValue = None):
-        self.click(buttonBy if buttonBy else By.CSS_SELECTOR, buttonValue if buttonValue else \
-            "button.submitBtn", "Submit form")
+        self.click(
+            buttonBy or By.CSS_SELECTOR,
+            buttonValue or "button.submitBtn",
+            "Submit form",
+        )
 
     def selectOptionByText(self, by, value, text):
         self.log("selection '{0}' option from {1}".format(text, self.describeElement(by, value)))
@@ -698,48 +706,48 @@ class BrowserTest(unittest.TestCase):
         try:
             super(BrowserTest, self).assertNotIsInstance(a, b)
         except AttributeError:
-            if not(not isinstance(a, b)):
+            if isinstance(a, b):
                 self.fail("Expected {0} is not an instance of {1}".format(a, b))
 
     def assertIn(self, a, b):
         try:
             super(BrowserTest, self).assertIsIn(a, b)
         except AttributeError:
-            if not(a in b):
+            if a not in b:
                 self.fail("Expected {0} in {1}".format(a, b))
 
     def assertNotIn(self, a, b):
         try:
             super(BrowserTest, self).assertNotIn(a, b)
         except AttributeError:
-            if not(a not in b):
+            if a in b:
                 self.fail("Expected {0} not in {1}".format(a, b))
 
     def assertIs(self, a, b):
         try:
             super(BrowserTest, self).assertIsIn(a, b)
         except AttributeError:
-            if not(a is b):
+            if a is not b:
                 self.fail("Expected {0} is {1}".format(a, b))
 
     def assertIsNot(self, a, b):
         try:
             super(BrowserTest, self).assertIsNot(a, b)
         except AttributeError:
-            if not(a is not b):
+            if a is b:
                 self.fail("Expected {0} is not {1}".format(a, b))
 
     def assertIsNone(self, a):
         try:
             super(BrowserTest, self).assertIsNone(a)
         except AttributeError:
-            if not(a is None):
+            if a is not None:
                 self.fail("Expected None, but got {0}".format(a))
 
     def assertIsNotNone(self, a):
         try:
             super(BrowserTest, self).assertIsNotNone(a)
         except AttributeError:
-            if not(a is not None):
+            if a is None:
                 self.fail("Expected something other than None, but got None")
 

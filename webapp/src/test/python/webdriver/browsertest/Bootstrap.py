@@ -22,10 +22,7 @@ class Bootstrap:
                 if name != 'browsertest' and os.path.isdir(dirname + os.sep + name):
                     package_path = dirname + os.sep + name
                     #if os.path.isfile(package_path + os.sep + "setup.py"):
-                    if package_path in sys.path:
-                        #print "Module {0} already on path".format(name)
-                        pass
-                    else:
+                    if package_path not in sys.path:
                         Bootstrap.verbose("Adding module {1} from {0}".format(package_path, name))
                         sys.path.append(package_path)
                 else:
@@ -43,16 +40,12 @@ class Bootstrap:
 
     @staticmethod
     def argToEnv(arg, name):
-        prefix = "--" + name
+        prefix = f"--{name}"
         if not arg or not arg.startswith(prefix):
             return
 
-        prefix = prefix + "="
-        if arg.startswith(prefix):
-            value = arg.replace(prefix, "")
-        else:
-            value = "TRUE"
-
+        prefix = f"{prefix}="
+        value = arg.replace(prefix, "") if arg.startswith(prefix) else "TRUE"
         variable = Bootstrap.convertArgumentToVariableName(name)
         Bootstrap.verbose("set environment variable {0} to '{1}'".format(variable, value))
         os.environ[variable] = value
@@ -69,6 +62,5 @@ class Bootstrap:
 
     @staticmethod
     def verbose(text):
-        isVerbose = os.getenv("VERBOSE_BOOTSTRAP")
-        if isVerbose:
+        if isVerbose := os.getenv("VERBOSE_BOOTSTRAP"):
             print(text)

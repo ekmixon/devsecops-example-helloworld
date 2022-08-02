@@ -59,9 +59,9 @@ class Reporter():
                 status = row[Reporter.STATUS_COLUMN]
                 href = row[Reporter.REFERENCE_COLUMN]
                 testResultRows = "{0}\n<tr><th>{1}</th><td class=\"{2}\">{2}</td></tr>".format(\
-                    testResultRows,\
-                    "<a href=\"{0}\">{1}</a>".format(href, label) if href else label,\
-                    status)
+                        testResultRows,\
+                        "<a href=\"{0}\">{1}</a>".format(href, label) if href else label,\
+                        status)
         environment = os.getenv("ENVIRONMENT", "-")
         capabilities = json.loads(os.getenv("WEBDRIVER_CAPABILITIES", "{}"))
         project = capabilities['project'] if 'project' in capabilities else '-'
@@ -69,11 +69,9 @@ class Reporter():
         capabilities['completion time'] = datetime.datetime.now().strftime("%Y/%m/%d %H:%S")
         capabilities['environment'] = environment
         testPropertyRows = ""
-        keys = []
-        for key in capabilities:
-            keys.append(key)
+        keys = list(capabilities)
         keys = sorted(keys)
-        for i in range(0,len(keys)):
+        for i in range(len(keys)):
             key = keys[i]
             value = capabilities[key]
             key = key.replace("_", " ").capitalize()

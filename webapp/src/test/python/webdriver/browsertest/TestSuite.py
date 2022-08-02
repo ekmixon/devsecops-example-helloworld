@@ -31,7 +31,7 @@ class TestSuite:
         self._verbose = self._verbose(verbose)
         self._convertArguments()
         if clazz is None:
-            self._pattern = pattern if pattern else "test_.*\.py$"
+            self._pattern = pattern or "test_.*\.py$"
             self._testSuite = self._createSuite(top)
         else:
             self._testSuite = self._createSuiteFromTestCase(clazz)
@@ -50,10 +50,10 @@ class TestSuite:
             else:
                 import xmlrunner
                 self._log("Sending XML output to '{0}' (encoding={1})".format(testReportsDir,\
-                    self._inputEncoding))
+                        self._inputEncoding))
                 runner = xmlrunner.XMLTestRunner(verbosity = verbosity, output = testReportsDir)
-        print "About to run {0} test cases".format(self._testSuite.countTestCases())
-        if not os.getenv("REUSE_DRIVER") is None:
+        reload(sys)
+        if os.getenv("REUSE_DRIVER") is not None:
             self._log("Reuse WebDriver for all tests")
             TestSuite.webDriver = Container()
         else:
@@ -61,13 +61,13 @@ class TestSuite:
         self._log("About to run test")
         successful = self.isSuccessful(runner.run(self._testSuite))
         self._log("Test suite successful:{0}".format(successful))
-        if not TestSuite.webDriver is None:
+        if TestSuite.webDriver is not None:
             TestSuite.webDriver.teardownDriver(successful)
         if TestSuite.reporter:
             TestSuite.reporter.closeResultsFile()
 
     def isSuccessful(self, result):
-        return bool(Result.convert(result) == Result.PASS)
+        return Result.convert(result) == Result.PASS
 
     def _verbose(self, verbose):
         if (verbose == True):
@@ -75,7 +75,7 @@ class TestSuite:
         for arg in sys.argv:
             if arg == "--verbose":
                 return True
-        return (not os.getenv("VERBOSE") is None)
+        return os.getenv("VERBOSE") is not None
 
     def _log(self, message):
         if self._verbose:
@@ -90,15 +90,12 @@ class TestSuite:
         directories = self._findDirectories(top)
         #sys.path.insert(1, top)
         loader = unittest.TestLoader()
-        suiteList = []
-        for directory in directories:
-            suiteList.append(self._discover(loader, directory))
-        suite = unittest.TestSuite(suiteList)
-        print "Found {0} test cases".format(suite.countTestCases())
-        return suite
+        suiteList = [self._discover(loader, directory) for directory in directories]
+        directories = self._findDirectories(top)
+        return unittest.TestSuite(suiteList)
 
     def _discover(self, loader, directory, prefix = None):
-        directory = directory if directory else "."
+        directory = directory or "."
         self._log("Discovering test cases in {0}".format(directory))
 
         testSuite = unittest.TestSuite()
@@ -110,10 +107,10 @@ class TestSuite:
         files = sorted(files)
         for f in files:
             if pattern.match(f):
-                self._log("Checking " + f + " for " + self._pattern)
+                self._log(f"Checking {f} for {self._pattern}")
                 testName = self._testName(f)
                 if testName != "":
-                    self._log("Found test {0} in {1}".format(testName, directory + "/" + f))
+                    self._log("Found test {0} in {1}".format(testName, f"{directory}/{f}"))
                     testSuite.addTests(loader.loadTestsFromName(testName))
         return testSuite
 
@@ -121,22 +118,21 @@ class TestSuite:
         path = directory
         path = path[1:] if path.startswith(".") else path
         path = path[1:] if path.startswith("/") else path
-        moduleName = ".".join(path.split("/"))
-        return moduleName
+        return ".".join(path.split("/"))
 
     def _testName(self, f):
         return f[:-3] if f.endswith(".py") else f
 
     def _findDirectories(self, top = None, prefix = None):
         #self._log("Running - {0} -".format(main.__file__))
-        top = top if top else os.path.dirname(main.__file__)
+        top = top or os.path.dirname(main.__file__)
         self._log("Checking {0} for directories".format(top if prefix is None else prefix))
         prefix = "" if prefix is None else prefix
         directories = [top]
         entries = os.listdir(top)
         for entry in entries:
-            if os.path.isdir(top + "/" + entry):
-                entryDir = "/" + entry
+            if os.path.isdir(f"{top}/{entry}"):
+                entryDir = f"/{entry}"
                 self._log("Adding directory {0} ".format(prefix + entryDir ))
                 directories += self._findDirectories(top + entryDir , prefix = entryDir )
         return directories
@@ -151,11 +147,7 @@ class TestSuite:
         Bootstrap.convertArgumentsToVariables(parameters)
 
     def _reporter(self):
-        reporter = None
-        resultsFile = self._resultsFile()
-        if resultsFile:
-            reporter = Reporter(resultsFile)
-        return reporter
+        return Reporter(resultsFile) if (resultsFile := self._resultsFile()) else None
 
     def _resultsFile(self):
         return os.getenv("RESULTS_FILE")
